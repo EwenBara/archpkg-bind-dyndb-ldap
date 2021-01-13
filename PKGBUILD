@@ -21,6 +21,7 @@ sha512sums=(
 prepare() {
         cd $pkgname-$pkgver
         patch --forward --strip=1 --input="${srcdir}/bind-9.16.9.patch"
+        patch --forward --strip=1 --input="${srcdir}/bind-9.16.10.patch"
 }
 
 build() {
