@@ -1,7 +1,7 @@
 # Maintainer: Ewen BARA <ewen.bara+aur@gmail.com>
 pkgname=bind-dyndb-ldap
 pkgver=11.9
-pkgrel=2
+pkgrel=3
 pkgdesc='LDAP driver for BIND'
 arch=('x86_64')
 url=https://pagure.io/bind-dyndb-ldap
