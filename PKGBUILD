@@ -9,10 +9,10 @@ license=('GPL2')
 depends=('bind')
 makedepends=()
 source=(
-        "https://releases.pagure.org/bind-dyndb-ldap/$pkgname-$pkgver.tar.bz2"
+        "https://releases.pagure.org/bind-dyndb-ldap/$pkgname-$pkgver.tar.gz"
 )
 sha512sums=(
-        'e8887c450375c2cda062bc6f08eee6505a784dc4f49ba69ba2f46d8d3e1ff3b94adabbcb3ffb978b3b138829d26bfde47d32f35707ca9ecbd0480b59a0e0d964'
+        '828279b39e3ddf715c560e0717b43e2ee835d83ce4169c74bbea9704e980a2c102b78a65e1135390044ccaa18c77a2791c5d9516c4fb46105d5663ce7c21d87f'
 )
 
 build() {
