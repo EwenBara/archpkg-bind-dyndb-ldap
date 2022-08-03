@@ -18,7 +18,7 @@ sha512sums=(
 build() {
         cd $srcdir/$pkgname-$pkgver
         autoreconf -fvi
-        ./configure --prefix=/usr
+        ./configure --prefix=/usr --libdir=/usr/lib
         make
 }
 
