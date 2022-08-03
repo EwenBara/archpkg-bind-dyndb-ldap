@@ -12,7 +12,7 @@ source=(
         "https://releases.pagure.org/bind-dyndb-ldap/$pkgname-$pkgver.tar.gz"
 )
 sha512sums=(
-        '828279b39e3ddf715c560e0717b43e2ee835d83ce4169c74bbea9704e980a2c102b78a65e1135390044ccaa18c77a2791c5d9516c4fb46105d5663ce7c21d87f'
+        '51e2679488e88e10a77eda4e09c22218f50f2013552cb2a55afabb98b76a6a418ca874066e17bb96f492f92a93120cbf366673d05d593585afb20d5bd4f4033e'
 )
 
 build() {
