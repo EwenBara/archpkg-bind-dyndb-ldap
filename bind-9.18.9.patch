@@ -1,0 +1,200 @@
+From 818b95a37b9712c46eb64e3cfecfa1e8a2d0cade Mon Sep 17 00:00:00 2001
+From: Petr Menšík <pemensik@redhat.com>
+Date: Nov 21 2022 16:53:32 +0000
+Subject: Support for BIND 9.18.9+
+
+
+Bind headers changed isc_error_fatal function. Also UNEXPECTED_ERROR
+from util.h has changed function signature. Use a conditional
+to provide compatibility for both new and previous versions.
+
+---
+
+diff --git a/src/ldap_helper.c b/src/ldap_helper.c
+index 7ea3df9..593cb99 100644
+--- a/src/ldap_helper.c
++++ b/src/ldap_helper.c
+@@ -1317,8 +1317,7 @@ configure_zone_acl(isc_mem_t *mctx, dns_zone_t *zone,
+ 			dns_zone_logc(zone, DNS_LOGCATEGORY_SECURITY, ISC_LOG_CRITICAL,
+ 				      "cannot configure restrictive %s policy: %s",
+ 				      type_txt, isc_result_totext(result2));
+-			FATAL_ERROR(__FILE__, __LINE__,
+-				    "insecure state detected");
++			fatal_error("insecure state detected");
+ 		}
+ 	}
+ 	acl_setter(zone, acl);
+@@ -1365,8 +1364,7 @@ configure_zone_ssutable(dns_zone_t *zone, const char *update_str)
+ 			dns_zone_logc(zone, DNS_LOGCATEGORY_SECURITY, ISC_LOG_CRITICAL,
+ 				      "cannot disable all updates: %s",
+ 				      isc_result_totext(result2));
+-			FATAL_ERROR(__FILE__, __LINE__,
+-				    "insecure state detected");
++			fatal_error("insecure state detected");
+ 		}
+ 	}
+
+@@ -2951,9 +2949,8 @@ force_reconnect:
+ 						   ldap_inst);
+ 		break;
+ 	case AUTH_INVALID:
+-		UNEXPECTED_ERROR(__FILE__, __LINE__,
+-				"invalid auth_method_enum value %u",
+-				 auth_method_enum);
++		DYNDB_UNEXPECTED_ERROR("invalid auth_method_enum value %u",
++				       auth_method_enum);
+ 		break;
+
+ 	default:
+@@ -3782,8 +3779,7 @@ update_zone(isc_task_t *task, isc_event_t *event)
+ 		else if (entry->class & LDAP_ENTRYCLASS_FORWARD)
+ 			CHECK(ldap_parse_fwd_zoneentry(entry, inst));
+ 		else
+-			FATAL_ERROR(__FILE__, __LINE__,
+-				    "update_zone: unexpected entry class");
++			fatal_error("update_zone: unexpected entry class");
+ 	}
+
+ cleanup:
+diff --git a/src/log.h b/src/log.h
+index da71f8b..4207f08 100644
+--- a/src/log.h
++++ b/src/log.h
+@@ -17,8 +17,13 @@
+ #define GET_LOG_LEVEL(level)	(level)
+ #endif
+
++#if LIBDNS_VERSION_MAJOR < 1809
+ #define fatal_error(...) \
+ 	isc_error_fatal(__FILE__, __LINE__, __VA_ARGS__)
++#else
++#define fatal_error(...) \
++	isc_error_fatal(__FILE__, __LINE__, __func__, __VA_ARGS__)
++#endif
+
+ #define log_bug(fmt, ...) \
+ 	log_error("bug in %s(): " fmt, __func__,##__VA_ARGS__)
+diff --git a/src/settings.c b/src/settings.c
+index def60d7..0ae08a4 100644
+--- a/src/settings.c
++++ b/src/settings.c
+@@ -17,6 +17,7 @@
+ #include <string.h>
+ #include <strings.h>
+
++#include "dyndb-config.h"
+ #include "log.h"
+ #include "settings.h"
+ #include "str.h"
+@@ -24,7 +25,6 @@
+ #include "types.h"
+ #include "ldap_helper.h"
+ #include "zone_register.h"
+-#include "dyndb-config.h"
+
+ #if LIBDNS_VERSION_MAJOR < 1600
+ #define cfg_parse_buffer cfg_parse_buffer4
+@@ -178,7 +178,7 @@ setting_get(const char *const name, const setting_type_t type,
+ 		*(bool *)target = setting->value.value_boolean;
+ 		break;
+ 	default:
+-		UNEXPECTED_ERROR(__FILE__, __LINE__,
++		DYNDB_UNEXPECTED_ERROR(
+ 				 "invalid setting_type_t value %u", type);
+ 		break;
+ 	}
+@@ -278,8 +278,8 @@ set_value(isc_mem_t *mctx, const settings_set_t *set, setting_t *setting,
+ 			CLEANUP_WITH(ISC_R_IGNORE);
+ 		break;
+ 	default:
+-		UNEXPECTED_ERROR(__FILE__, __LINE__,
+-				 "invalid setting_type_t value %u", setting->type);
++		DYNDB_UNEXPECTED_ERROR("invalid setting_type_t value %u",
++				       setting->type);
+ 		break;
+ 	}
+
+@@ -304,8 +304,8 @@ set_value(isc_mem_t *mctx, const settings_set_t *set, setting_t *setting,
+ 		setting->value.value_boolean = numeric_value;
+ 		break;
+ 	default:
+-		UNEXPECTED_ERROR(__FILE__, __LINE__,
+-				 "invalid setting_type_t value %u", setting->type);
++		DYNDB_UNEXPECTED_ERROR("invalid setting_type_t value %u",
++				       setting->type);
+ 		break;
+ 	}
+ 	setting->filled = 1;
+@@ -389,8 +389,8 @@ setting_unset(const char *const name, const settings_set_t *set)
+ 	case ST_BOOLEAN:
+ 		break;
+ 	default:
+-		UNEXPECTED_ERROR(__FILE__, __LINE__,
+-				 "invalid setting_type_t value %u", setting->type);
++		DYNDB_UNEXPECTED_ERROR("invalid setting_type_t value %u",
++				       setting->type);
+ 		break;
+ 	}
+ 	setting->filled = 0;
+diff --git a/src/syncrepl.c b/src/syncrepl.c
+index 0bee09a..9be17bf 100644
+--- a/src/syncrepl.c
++++ b/src/syncrepl.c
+@@ -13,6 +13,7 @@
+
+ #include "dyndb-config.h"
+ #include "ldap_helper.h"
++#include "log.h"
+ #include "util.h"
+ #include "semaphore.h"
+ #include "syncrepl.h"
+@@ -148,8 +149,7 @@ finish(isc_task_t *task, isc_event_t *event) {
+ 		case sync_datainit:
+ 		case sync_finished:
+ 		default:
+-			FATAL_ERROR(__FILE__, __LINE__,
+-				    "sync_barrier_wait(): invalid state "
++			fatal_error("sync_barrier_wait(): invalid state "
+ 				    "%u", bev->sctx->state);
+ 	}
+ 	sync_state_change(bev->sctx, new_state, false);
+@@ -518,8 +518,7 @@ sync_barrier_wait(sync_ctx_t *sctx, ldap_instance_t *inst) {
+ 		case sync_databarrier:
+ 		case sync_finished:
+ 		default:
+-			FATAL_ERROR(__FILE__, __LINE__,
+-				    "sync_barrier_wait(): invalid state "
++			fatal_error("sync_barrier_wait(): invalid state "
+ 				    "%u", sctx->state);
+ 	}
+
+diff --git a/src/util.h b/src/util.h
+index 5088ff3..4fff21a 100644
+--- a/src/util.h
++++ b/src/util.h
+@@ -14,8 +14,8 @@
+ #include <dns/name.h>
+ #include <dns/result.h>
+
+-#include "log.h"
+ #include "dyndb-config.h"
++#include "log.h"
+
+ extern bool verbose_checks; /* from settings.c */
+
+@@ -29,6 +29,14 @@ extern bool verbose_checks; /* from settings.c */
+ #define dns_name_copynf(src, dst) dns_name_copy((src), (dst))
+ #endif
+
++#if LIBDNS_VERSION_MAJOR < 1809
++#  define DYNDB_UNEXPECTED_ERROR(...) \
++	isc_error_unexpected(__FILE__, __LINE__, __VA_ARGS__)
++#else
++#  define DYNDB_UNEXPECTED_ERROR(...) \
++	isc_error_unexpected(__FILE__, __LINE__, __func__, __VA_ARGS__)
++#endif
++
+ #define CLEANUP_WITH(result_code)				\
+ 	do {							\
+ 		result = (result_code);				\
+
